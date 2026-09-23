@@ -36,24 +36,22 @@ jobs:
           git commit -m "drop $(cat .version)"
           git push
 
-  # Instalar de verdad con Scoop lo que haya en main tras el update.
+  # Instalar de verdad, como lo hace un usuario: el bucket desde GitHub, que
+  # tras el update ya tiene el manifiesto nuevo en main. `scoop install` sale
+  # con 0 aunque falle, asi que lo que cuenta es que `drop.exe` exista y arranque.
   test:
     name: scoop install
     needs: update
     if: always() && (needs.update.result == 'success' || needs.update.result == 'skipped')
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main
-          fetch-depth: 0
       - name: scoop install oloxx/drop
         shell: pwsh
         run: |
           iex "& {$(irm get.scoop.sh)} -RunAsAdmin"
           $shims = Join-Path $env:USERPROFILE 'scoop\shims'
-          & "$shims\scoop.cmd" bucket add oloxx "$env:GITHUB_WORKSPACE"
+          & "$shims\scoop.cmd" bucket add oloxx https://github.com/${{ github.repository }}
           & "$shims\scoop.cmd" install oloxx/drop
-          if ($LASTEXITCODE -ne 0) { exit 1 }
+          if (-not (Test-Path "$shims\drop.exe")) { Write-Error 'scoop no ha instalado drop'; exit 1 }
           & "$shims\drop.exe" --version
           if ($LASTEXITCODE -ne 0) { exit 1 }
