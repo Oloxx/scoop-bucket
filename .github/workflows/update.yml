@@ -55,3 +55,7 @@ jobs:
           if (-not (Test-Path "$shims\drop.exe")) { Write-Error 'scoop no ha instalado drop'; exit 1 }
           & "$shims\drop.exe" --version
           if ($LASTEXITCODE -ne 0) { exit 1 }
+          # Instalado por Scoop, `drop update` no se toca: manda a scoop.
+          $out = & "$shims\drop.exe" update | Out-String
+          Write-Output $out
+          if ($out -notmatch 'scoop update drop') { Write-Error 'drop update no detecta Scoop'; exit 1 }
