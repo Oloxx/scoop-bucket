@@ -1,0 +1,59 @@
+name: Actualizar y probar
+
+# Cada seis horas mira si hay release nueva de Oloxx/drop; a mano con
+# "Run workflow"; y en cada push, para probar el manifiesto tal como esta.
+on:
+  schedule:
+    - cron: '23 */6 * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    name: Manifiesto al dia
+    if: github.event_name != 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: sudo apt-get update -qq && sudo apt-get install -y -qq minisign
+      # Verifica la firma del SHA256SUMS antes de escribir un solo hash.
+      - run: node scripts/update.mjs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+      - name: Commit si ha cambiado
+        run: |
+          if git diff --quiet -- bucket; then exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bucket
+          git commit -m "drop $(cat .version)"
+          git push
+
+  # Instalar de verdad con Scoop lo que haya en main tras el update.
+  test:
+    name: scoop install
+    needs: update
+    if: always() && (needs.update.result == 'success' || needs.update.result == 'skipped')
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: scoop install oloxx/drop
+        shell: pwsh
+        run: |
+          iex "& {$(irm get.scoop.sh)} -RunAsAdmin"
+          $shims = Join-Path $env:USERPROFILE 'scoop\shims'
+          & "$shims\scoop.cmd" bucket add oloxx "$env:GITHUB_WORKSPACE"
+          & "$shims\scoop.cmd" install oloxx/drop
+          if ($LASTEXITCODE -ne 0) { exit 1 }
+          & "$shims\drop.exe" --version
+          if ($LASTEXITCODE -ne 0) { exit 1 }
