@@ -1,13 +1,13 @@
 {
-    "version": "0.10.1",
+    "version": "0.11.0",
     "description": "Peer-to-peer file transfer, end-to-end encrypted, with a code you can say aloud",
     "homepage": "https://drop.oloxx.dev",
     "license": "Apache-2.0",
     "notes": "Actualiza con `scoop update drop`, no con `drop update`: el binario es de Scoop.",
     "architecture": {
         "64bit": {
-            "url": "https://github.com/Oloxx/drop/releases/download/v0.10.1/drop-v0.10.1-windows-x64.exe#/drop.exe",
-            "hash": "718ee3db0b34b06e1d127e029376dae9a3d840e4864cd0dbef6dbc104786b2a2"
+            "url": "https://github.com/Oloxx/drop/releases/download/v0.11.0/drop-v0.11.0-windows-x64.exe#/drop.exe",
+            "hash": "dfe15dd0f28963cc4004eb791223847eb067aca305975bd2547d2afbb4e03df0"
         }
     },
     "bin": "drop.exe",
