@@ -16,6 +16,8 @@ jobs:
   update:
     name: Manifiesto al dia
     if: github.event_name != 'push'
+    outputs:
+      changed: ${{ steps.commit.outputs.changed }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,13 +30,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
       - name: Commit si ha cambiado
+        id: commit
         run: |
-          if git diff --quiet -- bucket; then exit 0; fi
+          if git diff --quiet -- bucket; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add bucket
           git commit -m "drop $(cat .version)"
           git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
 
   # Instalar de verdad, como lo hace un usuario: el bucket desde GitHub, que
   # tras el update ya tiene el manifiesto nuevo en main. `scoop install` sale
@@ -42,7 +49,14 @@ jobs:
   test:
     name: scoop install
     needs: update
-    if: always() && (needs.update.result == 'success' || needs.update.result == 'skipped')
+    # En schedule solo instala si hubo cambio real de version, para no contar
+    # descargas falsas en la release de Oloxx/drop cuatro veces al dia.
+    if: |
+      always() && !cancelled() && (
+        (github.event_name == 'push' && needs.update.result == 'skipped') ||
+        (github.event_name == 'workflow_dispatch' && needs.update.result == 'success') ||
+        (needs.update.result == 'success' && needs.update.outputs.changed == 'true')
+      )
     runs-on: windows-latest
     steps:
       - name: scoop install oloxx/drop

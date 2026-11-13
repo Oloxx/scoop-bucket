@@ -32,6 +32,18 @@ const release = await res.json();
 const tag = release.tag_name;
 const version = tag.replace(/^v/, '');
 
+// Si no se pidio un tag concreto y el manifiesto ya apunta a esta version, salimos
+// antes de bajar SHA256SUMS/.minisig para no inflar el download_count en GitHub.
+const before = fs.existsSync(MANIFEST) ? fs.readFileSync(MANIFEST, 'utf8') : '';
+let currentVersion;
+if (before) {
+  try { currentVersion = JSON.parse(before).version; } catch {}
+}
+if (!wanted && currentVersion === version) {
+  console.log(`Sin cambios: drop ${version}`);
+  process.exit(0);
+}
+
 async function download(name, dest) {
   const asset = release.assets.find((a) => a.name === name);
   if (!asset) throw new Error(`La release ${tag} no trae ${name}`);
@@ -85,7 +97,6 @@ const manifest = {
 };
 
 const text = JSON.stringify(manifest, null, 4) + '\n';
-const before = fs.existsSync(MANIFEST) ? fs.readFileSync(MANIFEST, 'utf8') : '';
 fs.writeFileSync(MANIFEST, text);
 fs.writeFileSync('.version', version + '\n');
 console.log(before === text ? `Sin cambios: drop ${version}` : `bucket/drop.json -> drop ${version}`);
